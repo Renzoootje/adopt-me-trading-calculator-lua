@@ -29,7 +29,7 @@ local function logTradeItems()
     end
 
     -- Fetch the JSON value database
-    local json_url = "https://raw.githubusercontent.com/Renzoootje/adopt-me-trading-calculator-lua/refs/heads/main/test"
+    local json_url = "https://renzoootje.github.io/adopt-me-trading-calculator-lua/"
     local value_db = {}
     local name_to_data = {}
     local success, response = pcall(function()
