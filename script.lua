@@ -28,13 +28,17 @@ local function logTradeItems()
         partner_offer = trade_state.sender_offer
     end
 
-    -- Fetch the JSON value database
-    local json_url = "https://renzoootje.github.io/adopt-me-trading-calculator-lua/"
+    ----------------------------------------------------------------
+    -- Fetch the JSON value database (GitHub Pages–safe URL here)
+    ----------------------------------------------------------------
+    local json_url = "https://renzoootje.github.io/adopt-me-trading-calculator-lua" 
     local value_db = {}
     local name_to_data = {}
+
     local success, response = pcall(function()
-        return HttpService:GetAsync(json_url)
+        return HttpService:GetAsync(json_url, true) -- true disables cache
     end)
+
     if success then
         local decode_success, db = pcall(function()
             return HttpService:JSONDecode(response)
@@ -53,7 +57,9 @@ local function logTradeItems()
         warn("Failed to fetch JSON: " .. tostring(response))
     end
 
-    -- Calculate totals
+    ----------------------------------------------------------------
+    -- Function to get item value
+    ----------------------------------------------------------------
     local function getItemValue(item)
         local data = ItemDB[item.category][item.kind]
         local name = data and (data.name or item.kind) or "Unknown item"
@@ -90,12 +96,15 @@ local function logTradeItems()
         return item_value
     end
 
+    ----------------------------------------------------------------
+    -- Calculate totals and print items
+    ----------------------------------------------------------------
     local my_total = 0
     print("Your Offer Items:")
     for _, item in ipairs(my_offer.items or {}) do
         local data = ItemDB[item.category][item.kind]
         local name = data and (data.name or item.kind) or "Unknown item"
-        
+
         local prefix = ""
         if item.properties then
             if item.properties.mega_neon then
@@ -110,7 +119,7 @@ local function logTradeItems()
                 prefix = prefix .. "Ride "
             end
         end
-        
+
         print(prefix .. name)
         my_total = my_total + getItemValue(item)
     end
@@ -120,7 +129,7 @@ local function logTradeItems()
     for _, item in ipairs(partner_offer.items or {}) do
         local data = ItemDB[item.category][item.kind]
         local name = data and (data.name or item.kind) or "Unknown item"
-        
+
         local prefix = ""
         if item.properties then
             if item.properties.mega_neon then
@@ -135,30 +144,37 @@ local function logTradeItems()
                 prefix = prefix .. "Ride "
             end
         end
-        
+
         print(prefix .. name)
         partner_total = partner_total + getItemValue(item)
     end
 
     local diff = partner_total - my_total
-    local label = ""
-    local result_str = ""
+    local result_str
     if diff > 0 then
-        label = "WIN"
-        result_str = string.format("%s: %+.1f", label, diff)
+        result_str = string.format("WIN: +%.1f", diff)
     elseif diff < 0 then
-        label = "LOSS"
-        result_str = string.format("%s: %+.1f", label, diff)
+        result_str = string.format("LOSS: %.1f", diff)
     else
         result_str = "FAIR: 0"
     end
 
     print(string.format("You: %.1f Other: %.1f, %s", my_total, partner_total, result_str))
 
-    -- Create ScreenGui
+    ----------------------------------------------------------------
+    -- GUI creation (fixed PlayerGui issue)
+    ----------------------------------------------------------------
+    local playerGui = localPlayer:WaitForChild("PlayerGui")
+    
+    -- Clean up if already exists
+    local existing = playerGui:FindFirstChild("TradeValueGui")
+    if existing then
+        existing:Destroy()
+    end
+
     local gui = Instance.new("ScreenGui")
     gui.Name = "TradeValueGui"
-    gui.Parent = localPlayer:WaitForChild("PlayerGui")
+    gui.Parent = playerGui
 
     local frame = Instance.new("Frame")
     frame.Size = UDim2.new(0, 200, 0, 100)
