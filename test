@@ -3,12 +3,16 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local localPlayer = Players.LocalPlayer
 
--- Cached references to avoid repeated lookups
-local ClientData, ItemDB
-local last_successful_access_method = nil
-local script_initialized = false
+-- Debug flag - set to true to see what's happening
+local DEBUG = true
 
--- Helper: safe table access with deep path support
+local function debug_print(...)
+    if DEBUG then
+        print("[TRADE DEBUG]", ...)
+    end
+end
+
+-- Helper functions
 local function safe_get(tbl, ...)
     local current = tbl
     local path = {...}
@@ -23,7 +27,6 @@ local function safe_get(tbl, ...)
     return current
 end
 
--- Helper: get keys of a table (for debugging)
 local function table_keys(tbl)
     local keys = {}
     if type(tbl) == "table" then
@@ -34,119 +37,87 @@ local function table_keys(tbl)
     return keys
 end
 
--- Initialize function that runs once
-local function initialize()
-    if script_initialized then return true end
-    
-    -- Wait for Fsys with timeout
-    local start_time = tick()
-    local Fsys
-    
-    while not Fsys and (tick() - start_time) < 15 do
-        Fsys = ReplicatedStorage:FindFirstChild("Fsys")
-        if not Fsys then
-            wait(0.1)
-        end
-    end
-    
-    if not Fsys then
-        warn("Fsys not found after 15 seconds")
-        return false
-    end
+-- Simple initialization
+debug_print("Starting initialization...")
 
-    -- Load FsysModule safely
-    local FsysModule
-    local success = pcall(function()
-        FsysModule = require(Fsys)
-    end)
-    
-    if not success or not FsysModule then
-        warn("Failed to load Fsys module")
-        return false
-    end
-
-    -- Find load function
-    local load
-    if type(FsysModule) == "table" then
-        local possible_loaders = {"load", "Load", "require", "getModule", "get", "fetch", "Fetch"}
-        
-        for _, loader_name in ipairs(possible_loaders) do
-            local loader = safe_get(FsysModule, loader_name)
-            if type(loader) == "function" then
-                load = loader
-                break
-            end
-        end
-        
-        if not load then
-            warn("No valid loader found in Fsys. Available keys: " .. table.concat(table_keys(FsysModule), ", "))
-            return false
-        end
-    end
-
-    -- Load ClientData and ItemDB with multiple attempts
-    local max_attempts = 3
-    
-    for attempt = 1, max_attempts do
-        -- Try loading ClientData
-        if not ClientData and load then
-            pcall(function()
-                ClientData = load("ClientData")
-            end)
-        end
-        
-        -- Try loading ItemDB
-        if not ItemDB and load then
-            pcall(function()
-                ItemDB = load("ItemDB")
-            end)
-        end
-        
-        -- Fallback to direct require
-        if not ClientData then
-            local CD = ReplicatedStorage:FindFirstChild("ClientData")
-            if CD then
-                pcall(function()
-                    ClientData = require(CD)
-                end)
-            end
-        end
-        
-        if not ItemDB then
-            local IDB = ReplicatedStorage:FindFirstChild("ItemDB")
-            if IDB then
-                pcall(function()
-                    ItemDB = require(IDB)
-                end)
-            end
-        end
-        
-        -- Check if we have both modules
-        if ClientData and ItemDB then
-            break
-        end
-        
-        wait(0.5) -- Wait between attempts
-    end
-
-    if not ClientData then
-        warn("Failed to load ClientData after " .. max_attempts .. " attempts")
-        return false
-    end
-
-    if not ItemDB then
-        warn("Failed to load ItemDB after " .. max_attempts .. " attempts")
-        return false
-    end
-
-    script_initialized = true
-    return true
+local Fsys = ReplicatedStorage:WaitForChild("Fsys", 10)
+if not Fsys then
+    debug_print("ERROR: Fsys not found")
+    return
 end
 
--- Value list (1 sample pet)
+local FsysModule = require(Fsys)
+if not FsysModule then
+    debug_print("ERROR: FsysModule failed to load")
+    return
+end
+
+debug_print("FsysModule loaded, type:", type(FsysModule))
+debug_print("FsysModule keys:", table.concat(table_keys(FsysModule), ", "))
+
+-- Find load function
+local load
+if type(FsysModule) == "table" then
+    load = FsysModule.load or FsysModule.Load or FsysModule.require or FsysModule.getModule or FsysModule.get
+    if type(load) ~= "function" then
+        debug_print("ERROR: No valid loader found")
+        return
+    else
+        debug_print("Loader found:", tostring(load))
+    end
+end
+
+-- Load modules
+local ClientData, ItemDB
+
+if load then
+    local success1, result1 = pcall(function() return load("ClientData") end)
+    local success2, result2 = pcall(function() return load("ItemDB") end)
+    
+    if success1 then 
+        ClientData = result1
+        debug_print("ClientData loaded via loader")
+    end
+    if success2 then 
+        ItemDB = result2
+        debug_print("ItemDB loaded via loader")
+    end
+end
+
+-- Fallback
+if not ClientData then
+    local CD = ReplicatedStorage:FindFirstChild("ClientData")
+    if CD then
+        ClientData = require(CD)
+        debug_print("ClientData loaded via fallback")
+    end
+end
+
+if not ItemDB then
+    local IDB = ReplicatedStorage:FindFirstChild("ItemDB")
+    if IDB then
+        ItemDB = require(IDB)
+        debug_print("ItemDB loaded via fallback")
+    end
+end
+
+if not ClientData then
+    debug_print("ERROR: ClientData not loaded")
+    return
+end
+
+if not ItemDB then
+    debug_print("ERROR: ItemDB not loaded")
+    return
+end
+
+debug_print("Both modules loaded successfully")
+debug_print("ClientData type:", type(ClientData))
+debug_print("ClientData keys:", table.concat(table_keys(ClientData), ", "))
+
+-- Value data
 local values_data = {
-    ["0"] = {
-        image = "/images/pets/Hedgehog.png",
+    ["Hedgehog"] = {
         rvalue = 42.5,
         nvalue = 176.0,
         mvalue = 725.0,
@@ -162,266 +133,159 @@ local values_data = {
         ["mvalue - ride"] = 739.0,
         ["mvalue - fly"] = 739.0,
         ["mvalue - fly&ride"] = 725.0,
-        rarity = "ultra rare",
-        type = "pets",
-        name = "Hedgehog",
-        id = "0"
+        name = "Hedgehog"
     }
 }
 
--- Map by name
-local name_to_data = {}
-for _, d in pairs(values_data) do
-    if d.name then
-        name_to_data[d.name] = d
-    end
-end
-
--- Robust trade data getter with caching
+-- Simple trade data getter
 local function get_trade_data()
-    if not ClientData then return nil end
-    
-    -- Try the last successful method first
-    if last_successful_access_method then
-        local success, result = pcall(function()
-            if last_successful_access_method.type == "property" then
-                return ClientData[last_successful_access_method.key]
-            elseif last_successful_access_method.type == "method" then
-                return ClientData[last_successful_access_method.key](last_successful_access_method.param)
-            end
-        end)
-        
-        if success and result then
-            return result
-        end
-        
-        -- Clear cached method if it failed
-        last_successful_access_method = nil
-    end
-    
-    -- Try direct property access
-    local direct_properties = {"trade", "Trade", "tradeData", "TradeData", "current_trade", "currentTrade"}
-    
-    for _, prop in ipairs(direct_properties) do
-        local value = safe_get(ClientData, prop)
-        if value then
-            last_successful_access_method = {type = "property", key = prop}
-            return value
-        end
-    end
-    
-    -- Try method calls
-    local methods_and_params = {
-        {"get", "trade"}, {"get", "Trade"},
-        {"Get", "trade"}, {"Get", "Trade"},
-        {"getData", "trade"}, {"getData", "Trade"},
-        {"GetData", "trade"}, {"GetData", "Trade"},
-        {"fetch", "trade"}, {"fetch", "Trade"},
-        {"Fetch", "trade"}, {"Fetch", "Trade"},
-        {"read", "trade"}, {"read", "Trade"},
-        {"Read", "trade"}, {"Read", "Trade"},
-        {"value", "trade"}, {"value", "Trade"},
-        {"Value", "trade"}, {"Value", "Trade"}
+    local methods_to_try = {
+        function() return ClientData.trade end,
+        function() return ClientData.Trade end,
+        function() return ClientData.get and ClientData.get("trade") end,
+        function() return ClientData.Get and ClientData.Get("trade") end,
+        function() return ClientData.get and ClientData.get("Trade") end,
+        function() return ClientData.getData and ClientData.getData("trade") end,
     }
     
-    for _, method_data in ipairs(methods_and_params) do
-        local method_name, param = method_data[1], method_data[2]
-        local method = safe_get(ClientData, method_name)
-        
-        if type(method) == "function" then
-            local success, result = pcall(function()
-                return method(param)
-            end)
-            
-            if success and result then
-                last_successful_access_method = {type = "method", key = method_name, param = param}
-                return result
+    for i, method in ipairs(methods_to_try) do
+        local success, result = pcall(method)
+        if success and result then
+            debug_print("Trade data found using method", i)
+            debug_print("Trade data type:", type(result))
+            if type(result) == "table" then
+                debug_print("Trade data keys:", table.concat(table_keys(result), ", "))
             end
+            return result
         end
     end
     
+    debug_print("No trade data found")
     return nil
 end
 
--- Safe get offers
-local function getOffers(trade_state)
-    if not trade_state then return nil, nil end
+local function calculate_total(offer, label)
+    debug_print("Calculating total for", label)
     
-    local my_offer, partner_offer
-    local sender = safe_get(trade_state, "sender")
-    
-    if localPlayer == sender then
-        my_offer = safe_get(trade_state, "sender_offer")
-        partner_offer = safe_get(trade_state, "recipient_offer")
-    else
-        my_offer = safe_get(trade_state, "recipient_offer")
-        partner_offer = safe_get(trade_state, "sender_offer")
+    if not offer then
+        debug_print(label, "offer is nil")
+        return 0
     end
     
-    return my_offer, partner_offer
-end
-
--- Calculate total value
-local function calculate_total(offer)
-    if not offer then return 0 end
+    debug_print(label, "offer type:", type(offer))
+    if type(offer) == "table" then
+        debug_print(label, "offer keys:", table.concat(table_keys(offer), ", "))
+    end
     
-    local items = safe_get(offer, "items")
-    if not items or type(items) ~= "table" then return 0 end
+    local items = offer.items
+    if not items then
+        debug_print(label, "no items found")
+        return 0
+    end
+    
+    debug_print(label, "has", #items, "items")
     
     local total = 0
-    
-    for _, item in ipairs(items) do
-        if type(item) == "table" then
-            local category = safe_get(item, "category")
-            local kind = safe_get(item, "kind")
+    for i, item in ipairs(items) do
+        debug_print(label, "Item", i, ":")
+        debug_print("  Category:", item.category)
+        debug_print("  Kind:", item.kind)
+        
+        if item.category and item.kind then
+            local item_data = ItemDB[item.category] and ItemDB[item.category][item.kind]
+            local item_name = item_data and item_data.name or item.kind
             
-            if category and kind then
-                -- Get item data from ItemDB
-                local item_data = safe_get(ItemDB, category, kind)
-                local item_name = "Unknown"
-                
-                if item_data then
-                    item_name = safe_get(item_data, "name") or kind
-                elseif kind then
-                    item_name = kind
-                end
-                
-                -- Look up value data
-                local data = safe_get(name_to_data, item_name)
-                
-                if data then
-                    local value = 0
-                    
-                    if category == "pets" then
-                        local base = "rvalue"
-                        local properties = safe_get(item, "properties")
-                        
-                        -- Check for neon types
-                        if properties then
-                            if safe_get(properties, "mega_neon") then
-                                base = "mvalue"
-                            elseif safe_get(properties, "neon") then
-                                base = "nvalue"
-                            end
-                        end
-                        
-                        -- Check for potions
-                        local suffix = " - nopotion"
-                        if properties then
-                            local flyable = safe_get(properties, "flyable")
-                            local rideable = safe_get(properties, "rideable")
-                            
-                            if flyable and rideable then
-                                suffix = " - fly&ride"
-                            elseif flyable then
-                                suffix = " - fly"
-                            elseif rideable then
-                                suffix = " - ride"
-                            end
-                        end
-                        
-                        value = safe_get(data, base .. suffix) or safe_get(data, base) or 0
-                    else
-                        value = safe_get(data, "value") or 0
-                    end
-                    
-                    total = total + value
-                end
+            debug_print("  Item name:", item_name)
+            
+            local value_data = values_data[item_name]
+            if value_data then
+                local value = value_data.rvalue or 0
+                debug_print("  Value found:", value)
+                total = total + value
+            else
+                debug_print("  No value data for:", item_name)
             end
         end
     end
     
+    debug_print(label, "total value:", total)
     return total
 end
 
--- Update UI safely
-local function updateUI(my_total, partner_total, diff)
-    local trade_app = safe_get(localPlayer, "PlayerGui", "TradeApp")
-    if not trade_app then return false end
-
-    local neg_frame = safe_get(trade_app, "Frame", "NegotiationFrame")
-    if not neg_frame then return false end
-
-    -- Update player labels
-    local you_frame = safe_get(neg_frame, "Header", "YouFrame")
-    if you_frame then
-        local name_label = safe_get(you_frame, "NameLabel")
-        if name_label and name_label.Text then
-            pcall(function()
-                name_label.Text = "You (" .. string.format("%.2f", my_total) .. ")"
-            end)
-        end
-    end
+-- Main loop with extensive debugging
+local loop_count = 0
+RunService.Heartbeat:Connect(function()
+    loop_count = loop_count + 1
     
-    local partner_frame = safe_get(neg_frame, "Header", "PartnerFrame")
-    if partner_frame then
-        local name_label = safe_get(partner_frame, "NameLabel")
-        if name_label and name_label.Text then
-            pcall(function()
-                name_label.Text = "Partner (" .. string.format("%.2f", partner_total) .. ")"
-            end)
+    -- Only debug every 60 frames (about once per second)
+    if loop_count % 60 == 1 then
+        debug_print("=== Loop", math.floor(loop_count/60), "===")
+        
+        -- Check for trade data
+        local trade_state = get_trade_data()
+        if not trade_state then
+            debug_print("No trade state found")
+            return
         end
-    end
-
-    -- Update difference label
-    local body = safe_get(neg_frame, "Body")
-    if body then
-        local name_label = safe_get(body, "TextLabel")
-        if name_label and name_label.Text then
-            pcall(function()
-                if diff > 0 then
-                    name_label.Text = "+" .. string.format("%.2f", diff) .. " (You lose)"
-                    name_label.TextColor3 = Color3.new(1, 0, 0)
-                elseif diff < 0 then
-                    name_label.Text = "+" .. string.format("%.2f", math.abs(diff)) .. " (You win)"
-                    name_label.TextColor3 = Color3.new(0, 1, 0)
+        
+        debug_print("Trade state found!")
+        
+        -- Check for trade UI
+        local trade_app = localPlayer.PlayerGui:FindFirstChild("TradeApp")
+        if not trade_app then
+            debug_print("TradeApp not found in PlayerGui")
+            debug_print("PlayerGui children:", table.concat(table_keys(localPlayer.PlayerGui), ", "))
+            return
+        end
+        
+        debug_print("TradeApp found!")
+        debug_print("TradeApp children:", table.concat(table_keys(trade_app), ", "))
+        
+        -- Get offers
+        local my_offer, partner_offer
+        if localPlayer == trade_state.sender then
+            my_offer = trade_state.sender_offer
+            partner_offer = trade_state.recipient_offer
+            debug_print("I am the sender")
+        else
+            my_offer = trade_state.recipient_offer  
+            partner_offer = trade_state.sender_offer
+            debug_print("I am the recipient")
+        end
+        
+        if my_offer and partner_offer then
+            local my_total = calculate_total(my_offer, "My")
+            local partner_total = calculate_total(partner_offer, "Partner")
+            local diff = my_total - partner_total
+            
+            debug_print("Final totals - Me:", my_total, "Partner:", partner_total, "Diff:", diff)
+            
+            -- Try to find and update labels
+            local frame = trade_app:FindFirstChild("Frame")
+            if frame then
+                debug_print("Frame found, children:", table.concat(table_keys(frame), ", "))
+                
+                local neg_frame = frame:FindFirstChild("NegotiationFrame")
+                if neg_frame then
+                    debug_print("NegotiationFrame found!")
+                    debug_print("NegotiationFrame children:", table.concat(table_keys(neg_frame), ", "))
+                    
+                    -- Try to update any text labels we can find
+                    for _, child in pairs(neg_frame:GetDescendants()) do
+                        if child:IsA("TextLabel") then
+                            debug_print("Found TextLabel:", child.Name, "Text:", child.Text)
+                        end
+                    end
                 else
-                    name_label.Text = "Fair Trade"
-                    name_label.TextColor3 = Color3.new(1, 1, 1)
+                    debug_print("NegotiationFrame not found")
                 end
-            end)
+            else
+                debug_print("Frame not found in TradeApp")
+            end
+        else
+            debug_print("Offers not found - my_offer:", my_offer ~= nil, "partner_offer:", partner_offer ~= nil)
         end
     end
-    
-    return true
-end
-
--- Main execution loop
-local function main_loop()
-    -- Ensure initialization
-    if not initialize() then
-        wait(1) -- Wait before trying again
-        return
-    end
-
-    -- Get trade data
-    local trade_state = get_trade_data()
-    if not trade_state then return end
-
-    -- Get offers
-    local my_offer, partner_offer = getOffers(trade_state)
-    if not my_offer or not partner_offer then return end
-
-    -- Calculate totals
-    local my_total = calculate_total(my_offer)
-    local partner_total = calculate_total(partner_offer)
-    local diff = my_total - partner_total
-
-    -- Update UI
-    updateUI(my_total, partner_total, diff)
-end
-
--- Start the main loop with error protection
-local connection
-connection = RunService.Heartbeat:Connect(function()
-    local success, error_msg = pcall(main_loop)
-    if not success then
-        warn("Trade calculator error: " .. tostring(error_msg))
-        -- Don't disconnect on error, just continue trying
-    end
 end)
 
--- Initialize immediately
-spawn(function()
-    initialize()
-end)
+debug_print("Script started and running!")
