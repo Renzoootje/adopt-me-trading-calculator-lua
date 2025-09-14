@@ -3,6 +3,15 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local localPlayer = Players.LocalPlayer
 
+-- Helper function to get table keys for debugging
+function table.keys(tbl)
+    local keys = {}
+    for key, _ in pairs(tbl) do
+        table.insert(keys, tostring(key))
+    end
+    return keys
+end
+
 -- Wait for Fsys module
 local Fsys = ReplicatedStorage:WaitForChild("Fsys", 10) -- Timeout after 10 seconds
 if not Fsys then
@@ -20,10 +29,35 @@ end
 -- Attempt to get the load function
 local load
 if type(FsysModule) == "table" then
-    load = FsysModule.load or FsysModule.Load or FsysModule.require
+    load = FsysModule.load or FsysModule.Load or FsysModule.require or FsysModule.getModule or FsysModule.get
     if not load then
         warn("No load function found in FsysModule. Available keys: " .. table.concat(table.keys(FsysModule), ", "))
-        return
+        for key, value in pairs(FsysModule) do
+            warn("FsysModule key: " .. tostring(key) .. " type: " .. type(value))
+        end
+        -- Fallback: Try direct require if no load function is found
+        warn("Falling back to direct require from ReplicatedStorage")
+        local ClientData = ReplicatedStorage:FindFirstChild("ClientData")
+        if not ClientData then
+            warn("ClientData module not found in ReplicatedStorage")
+            return
+        end
+        ClientData = require(ClientData)
+        if not ClientData then
+            warn("Failed to require ClientData module directly")
+            return
+        end
+
+        local ItemDB = ReplicatedStorage:FindFirstChild("ItemDB")
+        if not ItemDB then
+            warn("ItemDB module not found in ReplicatedStorage")
+            return
+        end
+        ItemDB = require(ItemDB)
+        if not ItemDB then
+            warn("Failed to require ItemDB module directly")
+            return
+        end
     elseif type(load) ~= "function" then
         warn("FsysModule.load is not a function, it is a " .. type(load))
         return
@@ -33,20 +67,24 @@ else
     return
 end
 
--- Load ClientData and ItemDB with error handling
-local ClientData = load("ClientData")
-if not ClientData then
-    warn("Failed to load ClientData module")
-    return
+-- Load ClientData and ItemDB with error handling (if load is available)
+local ClientData
+local ItemDB
+if load then
+    ClientData = load("ClientData")
+    if not ClientData then
+        warn("Failed to load ClientData module")
+        return
+    end
+
+    ItemDB = load("ItemDB")
+    if not ItemDB then
+        warn("Failed to load ItemDB module")
+        return
+    end
 end
 
-local ItemDB = load("ItemDB")
-if not ItemDB then
-    warn("Failed to load ItemDB module")
-    return
-end
-
--- Hardcoded JSON data (Paste your full JSON here without outer array brackets)
+-- Hardcoded JSON data (Paste your full JSON here without outer array brackets, converted to Lua syntax)
 local values_data = {
   ["0"] = {
     image = "/images/pets/Hedgehog.png",
