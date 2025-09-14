@@ -5,14 +5,53 @@ local localPlayer = Players.LocalPlayer
 
 print("Starting trade calculator...")
 
--- Wait for the necessary modules to load
+-- Function to safely require modules with error handling
+local function safeRequire(module)
+    local success, result = pcall(function()
+        return require(module)
+    end)
+    if success then
+        return result
+    else
+        warn("Failed to require " .. module.Name .. ": " .. result)
+        return nil
+    end
+end
+
+-- Wait for and require Fsys
 local Fsys = ReplicatedStorage:WaitForChild("Fsys")
-local load = require(Fsys).load
+if not Fsys then
+    warn("Fsys not found!")
+    return
+end
 
-local ClientData = load("ClientData")
-local ItemDB = load("ItemDB")
+local FsysModule = safeRequire(Fsys)
+if not FsysModule then
+    return
+end
 
--- Simple hardcoded value database (extend this with more pets)
+-- Check if Fsys has a load function
+if type(FsysModule.load) ~= "function" then
+    warn("Fsys.load is not a function!")
+    return
+end
+
+-- Load ClientData and ItemDB
+local ClientData = FsysModule.load("ClientData")
+local ItemDB = FsysModule.load("ItemDB")
+
+if not ClientData or not ItemDB then
+    warn("Failed to load ClientData or ItemDB!")
+    return
+end
+
+-- Check if ClientData has a get function
+if type(ClientData.get) ~= "function" then
+    warn("ClientData.get is not a function!")
+    return
+end
+
+-- Simple hardcoded value database
 local value_db = {
     ["Hedgehog"] = {
         rvalue = 42.5,
@@ -31,16 +70,20 @@ local value_db = {
         ["mvalue - fly"] = 739.0,
         ["mvalue - fly&ride"] = 725.0
     },
-    -- Add more pets here following the same pattern
+    -- Add more pets as needed
 }
 
 -- Main function to log pet information and calculate values
 local function logTradeItems()
+    print("Attempting to get trade state...")
     local trade_state = ClientData.get("trade")
+    
     if not trade_state then
         warn("No active trade found!")
         return
     end
+
+    print("Trade state found successfully")
 
     local my_offer, partner_offer
     if localPlayer == trade_state.sender then
@@ -60,13 +103,14 @@ local function logTradeItems()
         end
         
         local data = ItemDB[item.category] and ItemDB[item.category][item.kind]
-        local name = data and (data.name or item.kind) or "Unknown"
+        if not data then
+            return 0
+        end
         
-        print("Looking for pet: " .. name)
-        
+        local name = data.name or item.kind
         local value_data = value_db[name]
+        
         if not value_data then
-            print("No value data found for: " .. name)
             return 0
         end
 
@@ -91,10 +135,7 @@ local function logTradeItems()
         end
 
         local key = base_key .. suffix
-        local item_value = value_data[key] or value_data[base_key] or 0
-        print("Using key: " .. key .. " = " .. item_value)
-        
-        return item_value
+        return value_data[key] or value_data[base_key] or 0
     end
 
     local my_total = 0
@@ -193,4 +234,7 @@ local function logTradeItems()
     textLabel.TextWrapped = true
     textLabel.Parent = frame
 end
+
+-- Wait a bit for the game to load, then run the calculator
+wait(5)
 logTradeItems()
