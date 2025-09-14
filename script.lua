@@ -3,20 +3,71 @@ local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local localPlayer = Players.LocalPlayer
 
+print("Starting trade calculator...")
+
+-- Check if services exist
+if not ReplicatedStorage then
+    warn("ReplicatedStorage not found!")
+    return
+end
+
+print("ReplicatedStorage found")
+
 -- Wait for the necessary modules to load
-local Fsys = require(ReplicatedStorage:WaitForChild("Fsys"))
-local load = Fsys.load
+local Fsys = ReplicatedStorage:WaitForChild("Fsys", 10)
+if not Fsys then
+    warn("Fsys module not found!")
+    return
+end
 
-local ClientData = load("ClientData")
-local ItemDB = load("ItemDB")
+print("Fsys found, requiring...")
 
--- Hardcoded value database
+local success, load_func = pcall(function()
+    return require(Fsys).load
+end)
+
+if not success or not load_func then
+    warn("Failed to load Fsys or get load function: " .. tostring(load_func))
+    return
+end
+
+print("Load function obtained")
+
+local ClientData, ItemDB
+
+-- Try to load ClientData
+local cd_success, cd_result = pcall(function()
+    return load_func("ClientData")
+end)
+
+if cd_success then
+    ClientData = cd_result
+    print("ClientData loaded successfully")
+else
+    warn("Failed to load ClientData: " .. tostring(cd_result))
+    return
+end
+
+-- Try to load ItemDB
+local idb_success, idb_result = pcall(function()
+    return load_func("ItemDB")
+end)
+
+if idb_success then
+    ItemDB = idb_result
+    print("ItemDB loaded successfully")
+else
+    warn("Failed to load ItemDB: " .. tostring(idb_result))
+    return
+end
+
+-- Simple hardcoded value database (you can replace this with your JSON data)
 local value_db = {
-    ["0"] = {
+    ["Hedgehog"] = {
+        name = "Hedgehog",
         rvalue = 42.5,
         nvalue = 176.0,
         mvalue = 725.0,
-        status = "Ready",
         ["rvalue - nopotion"] = 42.0,
         ["rvalue - ride"] = 42.0,
         ["rvalue - fly"] = 42.0,
@@ -28,22 +79,13 @@ local value_db = {
         ["mvalue - nopotion"] = 755.0,
         ["mvalue - ride"] = 739.0,
         ["mvalue - fly"] = 739.0,
-        ["mvalue - fly&ride"] = 725.0,
-        ["fly&ride?"] = "true",
-        rarity = "ultra rare",
-        type = "pets",
-        categoryd = "Classy",
-        categoryn = "Classy",
-        categorym = "Classy",
-        name = "Hedgehog",
-        score = 1,
-        id = "0"
+        ["mvalue - fly&ride"] = 725.0
     },
-    ["1"] = {
+    ["African Wild Dog"] = {
+        name = "African Wild Dog",
         rvalue = 44.5,
         nvalue = 180.0,
         mvalue = 732.0,
-        status = "Ready",
         ["rvalue - nopotion"] = 44.5,
         ["rvalue - ride"] = 45.0,
         ["rvalue - fly"] = 45.0,
@@ -55,22 +97,13 @@ local value_db = {
         ["mvalue - nopotion"] = 742.0,
         ["mvalue - ride"] = 731.0,
         ["mvalue - fly"] = 731.0,
-        ["mvalue - fly&ride"] = 732.0,
-        ["fly&ride?"] = "false",
-        rarity = "ultra rare",
-        type = "pets",
-        categoryd = "Exotic",
-        categoryn = "Exotic",
-        categorym = "Exotic",
-        name = "African Wild Dog",
-        score = 2,
-        id = "1"
+        ["mvalue - fly&ride"] = 732.0
     },
-    ["2"] = {
+    ["Dalmatian"] = {
+        name = "Dalmatian",
         rvalue = 29.0,
         nvalue = 119.0,
         mvalue = 485.0,
-        status = "Ready",
         ["rvalue - nopotion"] = 28.5,
         ["rvalue - ride"] = 28.5,
         ["rvalue - fly"] = 28.5,
@@ -82,56 +115,112 @@ local value_db = {
         ["mvalue - nopotion"] = 515.0,
         ["mvalue - ride"] = 493.0,
         ["mvalue - fly"] = 493.0,
-        ["mvalue - fly&ride"] = 485.0,
-        ["fly&ride?"] = "true",
-        rarity = "ultra rare",
-        type = "pets",
-        categoryd = "Classy",
-        categoryn = "Classy",
-        categorym = "Classy",
-        name = "Dalmatian",
-        score = 3,
-        id = "2"
+        ["mvalue - fly&ride"] = 485.0
+    },
+    ["Shadow Dragon"] = {
+        name = "Shadow Dragon",
+        rvalue = 100,
+        nvalue = 400,
+        mvalue = 1600,
+        ["rvalue - nopotion"] = 95,
+        ["rvalue - ride"] = 98,
+        ["rvalue - fly"] = 98,
+        ["rvalue - fly&ride"] = 100,
+        ["nvalue - nopotion"] = 380,
+        ["nvalue - ride"] = 390,
+        ["nvalue - fly"] = 390,
+        ["nvalue - fly&ride"] = 400,
+        ["mvalue - nopotion"] = 1500,
+        ["mvalue - ride"] = 1550,
+        ["mvalue - fly"] = 1550,
+        ["mvalue - fly&ride"] = 1600
     }
 }
 
--- Create name-to-data lookup table
-local name_to_data = {}
-for id, data in pairs(value_db) do
-    if data.name then
-        name_to_data[data.name] = data
-    end
-end
+print("Value database loaded with " .. tostring(#value_db) .. " entries")
 
 -- Main function to log pet information and calculate values
 local function logTradeItems()
-    local trade_state = ClientData.get("trade")
+    print("Running logTradeItems function...")
+    
+    -- Check if ClientData exists and has get function
+    if not ClientData then
+        warn("ClientData is nil!")
+        return
+    end
+    
+    if not ClientData.get then
+        warn("ClientData.get function not found!")
+        return
+    end
+    
+    local trade_state
+    local get_success, get_result = pcall(function()
+        return ClientData.get("trade")
+    end)
+    
+    if get_success then
+        trade_state = get_result
+    else
+        warn("Failed to get trade state: " .. tostring(get_result))
+        return
+    end
+    
     if not trade_state then
         warn("No active trade found!")
         return
     end
+    
+    print("Trade state found")
 
     local my_offer, partner_offer
     if localPlayer == trade_state.sender then
         my_offer = trade_state.sender_offer
         partner_offer = trade_state.recipient_offer
+        print("You are the sender")
     else
         my_offer = trade_state.recipient_offer
         partner_offer = trade_state.sender_offer
+        print("You are the recipient")
     end
 
-    -- Calculate totals
+    -- Calculate totals with extensive error checking
     local function getItemValue(item)
+        if not item then
+            print("Item is nil")
+            return 0
+        end
+        
+        if not item.category or not item.kind then
+            print("Item missing category or kind")
+            return 0
+        end
+        
+        if not ItemDB then
+            warn("ItemDB is nil!")
+            return 0
+        end
+        
+        if not ItemDB[item.category] then
+            print("Category not found in ItemDB: " .. tostring(item.category))
+            return 0
+        end
+        
         local data = ItemDB[item.category][item.kind]
         local name = data and (data.name or item.kind) or "Unknown item"
-        local value_data = name_to_data[name]
+        
+        print("Looking for pet: " .. tostring(name))
+        
+        local value_data = value_db[name]
+        
         if not value_data then
+            print("No value data found for: " .. tostring(name))
             return 0
         end
 
         local item_value = 0
         if value_data.value then
-            item_value = value_data.value
+            item_value = tonumber(value_data.value) or 0
         else
             -- Assume pet
             local base_key = "rvalue"
@@ -152,212 +241,142 @@ local function logTradeItems()
             end
 
             local key = base_key .. suffix
-            item_value = value_data[key] or value_data[base_key] or 0
+            item_value = tonumber(value_data[key]) or tonumber(value_data[base_key]) or 0
+            print("Using key: " .. key .. " = " .. item_value)
         end
         return item_value
     end
 
     local my_total = 0
-    print("Your Offer Items:")
-    for _, item in ipairs(my_offer.items or {}) do
-        local data = ItemDB[item.category][item.kind]
-        local name = data and (data.name or item.kind) or "Unknown item"
-        
-        local prefix = ""
-        if item.properties then
-            if item.properties.mega_neon then
-                prefix = "Mega Neon "
-            elseif item.properties.neon then
-                prefix = "Neon "
+    print("=== Your Offer Items ===")
+    if my_offer and my_offer.items then
+        for i, item in ipairs(my_offer.items) do
+            print("Processing item " .. i)
+            local data = ItemDB[item.category] and ItemDB[item.category][item.kind]
+            local name = data and (data.name or item.kind) or "Unknown item"
+            
+            local prefix = ""
+            if item.properties then
+                if item.properties.mega_neon then
+                    prefix = "Mega Neon "
+                elseif item.properties.neon then
+                    prefix = "Neon "
+                end
+                if item.properties.flyable then
+                    prefix = prefix .. "Fly "
+                end
+                if item.properties.rideable then
+                    prefix = prefix .. "Ride "
+                end
             end
-            if item.properties.flyable then
-                prefix = prefix .. "Fly "
-            end
-            if item.properties.rideable then
-                prefix = prefix .. "Ride "
-            end
+            
+            local item_value = getItemValue(item)
+            print(prefix .. name .. " - Value: " .. item_value)
+            my_total = my_total + item_value
         end
-        
-        local item_value = getItemValue(item)
-        print(prefix .. name .. " - Value: " .. item_value)
-        my_total = my_total + item_value
+    else
+        print("No items in your offer")
     end
 
     local partner_total = 0
-    print("Their Offer Items:")
-    for _, item in ipairs(partner_offer.items or {}) do
-        local data = ItemDB[item.category][item.kind]
-        local name = data and (data.name or item.kind) or "Unknown item"
-        
-        local prefix = ""
-        if item.properties then
-            if item.properties.mega_neon then
-                prefix = "Mega Neon "
-            elseif item.properties.neon then
-                prefix = "Neon "
+    print("=== Their Offer Items ===")
+    if partner_offer and partner_offer.items then
+        for i, item in ipairs(partner_offer.items) do
+            print("Processing partner item " .. i)
+            local data = ItemDB[item.category] and ItemDB[item.category][item.kind]
+            local name = data and (data.name or item.kind) or "Unknown item"
+            
+            local prefix = ""
+            if item.properties then
+                if item.properties.mega_neon then
+                    prefix = "Mega Neon "
+                elseif item.properties.neon then
+                    prefix = "Neon "
+                end
+                if item.properties.flyable then
+                    prefix = prefix .. "Fly "
+                end
+                if item.properties.rideable then
+                    prefix = prefix .. "Ride "
+                end
             end
-            if item.properties.flyable then
-                prefix = prefix .. "Fly "
-            end
-            if item.properties.rideable then
-                prefix = prefix .. "Ride "
-            end
+            
+            local item_value = getItemValue(item)
+            print(prefix .. name .. " - Value: " .. item_value)
+            partner_total = partner_total + item_value
         end
-        
-        local item_value = getItemValue(item)
-        print(prefix .. name .. " - Value: " .. item_value)
-        partner_total = partner_total + item_value
+    else
+        print("No items in their offer")
     end
 
     local diff = partner_total - my_total
-    local label = ""
     local result_str = ""
     if diff > 0 then
-        label = "WIN"
-        result_str = string.format("%s: +%.1f", label, diff)
+        result_str = string.format("WIN: +%.1f", diff)
     elseif diff < 0 then
-        label = "LOSS"
-        result_str = string.format("%s: %.1f", label, diff)
+        result_str = string.format("LOSS: %.1f", diff)
     else
         result_str = "FAIR: 0"
     end
 
-    print(string.format("You: %.1f Other: %.1f, %s", my_total, partner_total, result_str))
+    print(string.format("=== RESULTS ==="))
+    print(string.format("You: %.1f", my_total))
+    print(string.format("Other: %.1f", partner_total))
+    print(result_str)
 
-    -- Remove existing GUI if it exists
-    local existingGui = localPlayer.PlayerGui:FindFirstChild("TradeValueGui")
-    if existingGui then
-        existingGui:Destroy()
+    -- Create simple GUI
+    local gui_success, gui_error = pcall(function()
+        -- Remove existing GUI if it exists
+        local existingGui = localPlayer.PlayerGui:FindFirstChild("TradeValueGui")
+        if existingGui then
+            existingGui:Destroy()
+        end
+
+        -- Create ScreenGui
+        local gui = Instance.new("ScreenGui")
+        gui.Name = "TradeValueGui"
+        gui.ResetOnSpawn = false
+        gui.Parent = localPlayer.PlayerGui
+
+        local frame = Instance.new("Frame")
+        frame.Size = UDim2.new(0, 200, 0, 100)
+        frame.Position = UDim2.new(0.5, -100, 0.5, -50)
+        frame.BackgroundColor3 = Color3.new(0, 0, 0)
+        frame.BackgroundTransparency = 0.3
+        frame.BorderSizePixel = 0
+        frame.Parent = gui
+
+        local textLabel = Instance.new("TextLabel")
+        textLabel.Size = UDim2.new(1, 0, 1, 0)
+        textLabel.Position = UDim2.new(0, 0, 0, 0)
+        textLabel.BackgroundTransparency = 1
+        textLabel.TextColor3 = Color3.new(1, 1, 1)
+        textLabel.Text = string.format("You: %.1f\nOther: %.1f\n%s", my_total, partner_total, result_str)
+        textLabel.TextSize = 14
+        textLabel.Font = Enum.Font.SourceSans
+        textLabel.TextWrapped = true
+        textLabel.Parent = frame
+
+        print("GUI created successfully!")
+    end)
+    
+    if not gui_success then
+        warn("Failed to create GUI: " .. tostring(gui_error))
     end
-
-    -- Create ScreenGui
-    local gui = Instance.new("ScreenGui")
-    gui.Name = "TradeValueGui"
-    gui.ResetOnSpawn = false
-    gui.Parent = localPlayer.PlayerGui
-
-    local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0, 200, 0, 100)
-    frame.Position = UDim2.new(0.5, -100, 0.5, -50)
-    frame.BackgroundColor3 = Color3.new(0, 0, 0)
-    frame.BackgroundTransparency = 0.3
-    frame.BorderSizePixel = 0
-    frame.Parent = gui
-
-    -- Add a border for better visibility
-    local border = Instance.new("UIStroke")
-    border.Color = Color3.new(1, 1, 1)
-    border.Thickness = 1
-    border.Parent = frame
-
-    local textLabel = Instance.new("TextLabel")
-    textLabel.Size = UDim2.new(1, 0, 1, -25)
-    textLabel.Position = UDim2.new(0, 0, 0, 25)
-    textLabel.BackgroundTransparency = 1
-    textLabel.TextColor3 = Color3.new(1, 1, 1)
-    textLabel.Text = string.format("You: %.1f\nOther: %.1f\n%s", my_total, partner_total, result_str)
-    textLabel.TextSize = 14
-    textLabel.Font = Enum.Font.SourceSans
-    textLabel.TextWrapped = true
-    textLabel.Parent = frame
-
-    -- Title label
-    local titleLabel = Instance.new("TextLabel")
-    titleLabel.Size = UDim2.new(1, -25, 0, 25)
-    titleLabel.Position = UDim2.new(0, 0, 0, 0)
-    titleLabel.BackgroundTransparency = 1
-    titleLabel.TextColor3 = Color3.new(1, 1, 1)
-    titleLabel.Text = "Trade Calculator"
-    titleLabel.TextSize = 12
-    titleLabel.Font = Enum.Font.SourceSansBold
-    titleLabel.Parent = frame
-
-    -- Close button
-    local closeButton = Instance.new("TextButton")
-    closeButton.Size = UDim2.new(0, 25, 0, 25)
-    closeButton.Position = UDim2.new(1, -25, 0, 0)
-    closeButton.Text = "X"
-    closeButton.BackgroundColor3 = Color3.new(1, 0, 0)
-    closeButton.TextColor3 = Color3.new(1, 1, 1)
-    closeButton.BorderSizePixel = 0
-    closeButton.Parent = frame
-
-    closeButton.MouseButton1Click:Connect(function()
-        gui:Destroy()
-    end)
-
-    -- Minimize button
-    local minButton = Instance.new("TextButton")
-    minButton.Size = UDim2.new(0, 25, 0, 25)
-    minButton.Position = UDim2.new(1, -50, 0, 0)
-    minButton.Text = "-"
-    minButton.BackgroundColor3 = Color3.new(0.5, 0.5, 0.5)
-    minButton.TextColor3 = Color3.new(1, 1, 1)
-    minButton.BorderSizePixel = 0
-    minButton.Parent = frame
-
-    local originalSize = frame.Size
-    local minimized = false
-    minButton.MouseButton1Click:Connect(function()
-        if minimized then
-            frame.Size = originalSize
-            textLabel.Visible = true
-            minButton.Text = "-"
-            minimized = false
-        else
-            originalSize = frame.Size
-            frame.Size = UDim2.new(0, 200, 0, 25)
-            textLabel.Visible = false
-            minButton.Text = "+"
-            minimized = true
-        end
-    end)
-
-    -- Make frame draggable
-    local dragging = false
-    local dragInput = nil
-    local dragStart = nil
-    local startPos = nil
-
-    local function update(input)
-        local delta = input.Position - dragStart
-        frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-    end
-
-    frame.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-            dragStart = input.Position
-            startPos = frame.Position
-
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                end
-            end)
-        end
-    end)
-
-    frame.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement then
-            dragInput = input
-        end
-    end)
-
-    UserInputService.InputChanged:Connect(function(input)
-        if input == dragInput and dragging then
-            update(input)
-        end
-    end)
-
-    print("Trade calculator GUI created successfully!")
 end
 
--- Execute the function with better error handling
+-- Execute the function with extensive error handling
+print("About to run trade calculator...")
 spawn(function()
-    wait(1) -- Small delay to ensure everything is loaded
+    wait(2) -- Longer delay to ensure everything is loaded
     local success, error_msg = pcall(logTradeItems)
     if not success then
         warn("Error running trade calculator: " .. tostring(error_msg))
+        print("Debug info:")
+        print("ClientData exists:", ClientData ~= nil)
+        print("ItemDB exists:", ItemDB ~= nil)
+        print("localPlayer exists:", localPlayer ~= nil)
+    else
+        print("Trade calculator ran successfully!")
     end
 end)
