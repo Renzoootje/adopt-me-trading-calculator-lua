@@ -10,16 +10,26 @@ if not Fsys then
     return
 end
 
--- Require Fsys and get the load function
+-- Require Fsys and inspect its structure
 local FsysModule = require(Fsys)
-if not FsysModule or type(FsysModule) ~= "table" then
-    warn("Fsys did not return a valid table")
+if not FsysModule then
+    warn("Fsys did not return a valid module")
     return
 end
 
-local load = FsysModule.load
-if not load or type(load) ~= "function" then
-    warn("Fsys.load is not a function")
+-- Attempt to get the load function
+local load
+if type(FsysModule) == "table" then
+    load = FsysModule.load or FsysModule.Load or FsysModule.require
+    if not load then
+        warn("No load function found in FsysModule. Available keys: " .. table.concat(table.keys(FsysModule), ", "))
+        return
+    elseif type(load) ~= "function" then
+        warn("FsysModule.load is not a function, it is a " .. type(load))
+        return
+    end
+else
+    warn("FsysModule is not a table, it is a " .. type(FsysModule))
     return
 end
 
