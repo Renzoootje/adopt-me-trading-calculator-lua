@@ -38080,8 +38080,16 @@ local json = {
 }
 
 local function get_value(item, ItemDB, json)
-    local data = ItemDB[item.category][item.kind]
-    local name = data and (data.name or item.kind) or "Unknown item"
+    if not item or not item.category or not item.kind then return 0 end
+    
+    local cat = ItemDB[item.category]
+    if not cat then return 0 end
+    
+    local data = cat[item.kind]
+    if not data then return 0 end
+    
+    local name = data.name or item.kind
+    
     local entry
     for _, e in pairs(json) do
         if e.name == name then
@@ -38096,16 +38104,20 @@ local function get_value(item, ItemDB, json)
     end
     
     local prefix = "r"
-    if item.properties then
-        if item.properties.mega_neon then prefix = "m"
-        elseif item.properties.neon then prefix = "n" end
+    local properties = item.properties or {}
+    if properties.mega_neon then
+        prefix = "m"
+    elseif properties.neon then
+        prefix = "n"
     end
     
     local suffix = "nopotion"
-    if item.properties then
-        if item.properties.flyable and item.properties.rideable then suffix = "fly&ride"
-        elseif item.properties.flyable then suffix = "fly"
-        elseif item.properties.rideable then suffix = "ride" end
+    if properties.flyable and properties.rideable then
+        suffix = "fly&ride"
+    elseif properties.flyable then
+        suffix = "fly"
+    elseif properties.rideable then
+        suffix = "ride"
     end
     
     local key = prefix .. "value - " .. suffix
