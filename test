@@ -84,55 +84,59 @@ for _, d in pairs(values_data) do
     if d.name then name_to_data[d.name] = d end
 end
 
--- Deep copy (fix readonly issue)
-local function deepCopy(orig)
-    if type(orig) ~= "table" then return orig end
-    local copy = {}
-    for k, v in pairs(orig) do
-        copy[k] = deepCopy(v)
-    end
-    return copy
-end
-
--- Safe get offers
+-- Safe get offers (no deep copy, just read values)
 local function getOffers(trade_state)
     local my_offer, partner_offer
     if localPlayer == trade_state.sender then
-        my_offer = deepCopy(trade_state.sender_offer or {})
-        partner_offer = deepCopy(trade_state.recipient_offer or {})
+        my_offer = trade_state.sender_offer
+        partner_offer = trade_state.recipient_offer
     else
-        my_offer = deepCopy(trade_state.recipient_offer or {})
-        partner_offer = deepCopy(trade_state.sender_offer or {})
+        my_offer = trade_state.recipient_offer
+        partner_offer = trade_state.sender_offer
     end
     return my_offer, partner_offer
 end
 
--- Calculate total
+-- Calculate total (read-only access)
 local function calculate_total(offer)
     if not offer or not offer.items then return 0 end
     local total = 0
+    
     for _, item in ipairs(offer.items) do
-        local item_data = ItemDB[item.category] and ItemDB[item.category][item.kind]
+        -- Safe access to ItemDB
+        local item_data = nil
+        if ItemDB[item.category] then
+            item_data = ItemDB[item.category][item.kind]
+        end
+        
         local item_name = item_data and (item_data.name or item.kind) or "Unknown"
         local data = name_to_data[item_name]
+        
         if data then
             local value = 0
             if item.category == "pets" then
                 local base = "rvalue"
+                
+                -- Check for mega neon or neon
                 if item.properties and item.properties.mega_neon then
                     base = "mvalue"
                 elseif item.properties and item.properties.neon then
                     base = "nvalue"
                 end
+                
+                -- Check for potions
                 local suffix = " - nopotion"
-                if item.properties and item.properties.flyable and item.properties.rideable then
-                    suffix = " - fly&ride"
-                elseif item.properties and item.properties.flyable then
-                    suffix = " - fly"
-                elseif item.properties and item.properties.rideable then
-                    suffix = " - ride"
+                if item.properties then
+                    if item.properties.flyable and item.properties.rideable then
+                        suffix = " - fly&ride"
+                    elseif item.properties.flyable then
+                        suffix = " - fly"
+                    elseif item.properties.rideable then
+                        suffix = " - ride"
+                    end
                 end
-                value = data[base .. suffix] or 0
+                
+                value = data[base .. suffix] or data[base] or 0
             else
                 value = data.value or 0
             end
@@ -144,7 +148,17 @@ end
 
 -- Main loop
 RunService.Heartbeat:Connect(function()
-    local trade_state = ClientData.get and ClientData.get("trade")
+    -- Safe access to ClientData
+    local trade_state = nil
+    if ClientData and ClientData.get then
+        local success, result = pcall(function()
+            return ClientData.get("trade")
+        end)
+        if success then
+            trade_state = result
+        end
+    end
+    
     if not trade_state then return end
 
     local trade_app = localPlayer.PlayerGui:FindFirstChild("TradeApp")
@@ -158,26 +172,27 @@ RunService.Heartbeat:Connect(function()
     local neg_frame = trade_app.Frame:FindFirstChild("NegotiationFrame")
     if not neg_frame then return end
 
-    -- Update labels
+    -- Update labels safely
     local you_frame = neg_frame.Header:FindFirstChild("YouFrame")
     if you_frame and you_frame:FindFirstChild("NameLabel") then
         you_frame.NameLabel.Text = "You (" .. string.format("%.2f", my_total) .. ")"
     end
+    
     local partner_frame = neg_frame.Header:FindFirstChild("PartnerFrame")
-    if partner_frame and partner_frame:FindFirstChild("TextLabel") then
+    if partner_frame and partner_frame:FindFirstChild("NameLabel") then
         partner_frame.NameLabel.Text = "Partner (" .. string.format("%.2f", partner_total) .. ")"
     end
 
     local body = neg_frame:FindFirstChild("Body")
-    if body and body:FindFirstChild("NameLabel") then
+    if body and body:FindFirstChild("TextLabel") then
         if diff > 0 then
-            body.NameLabel.Text = string.format("%.2f", diff)
+            body.NameLabel.Text = "+" .. string.format("%.2f", diff) .. " (You lose)"
             body.NameLabel.TextColor3 = Color3.new(1, 0, 0)
         elseif diff < 0 then
-            body.NameLabel.Text = string.format("%.2f", math.abs(diff))
+            body.NameLabel.Text = "+" .. string.format("%.2f", math.abs(diff)) .. " (You win)"
             body.NameLabel.TextColor3 = Color3.new(0, 1, 0)
         else
-            body.NameLabel.Text = "0"
+            body.NameLabel.Text = "Fair Trade"
             body.NameLabel.TextColor3 = Color3.new(1, 1, 1)
         end
     end
