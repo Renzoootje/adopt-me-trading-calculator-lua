@@ -35,9 +35,9 @@ if type(FsysModule) == "table" then
         for key, value in pairs(FsysModule) do
             warn("FsysModule key: " .. tostring(key) .. " type: " .. type(value))
         end
-        -- Fallback: Try direct require if no load function is found
+        -- Fallback: Try direct require from ReplicatedStorage
         warn("Falling back to direct require from ReplicatedStorage")
-        local ClientData = ReplicatedStorage:FindFirstChild("ClientData")
+        ClientData = ReplicatedStorage:FindFirstChild("ClientData")
         if not ClientData then
             warn("ClientData module not found in ReplicatedStorage")
             return
@@ -48,7 +48,7 @@ if type(FsysModule) == "table" then
             return
         end
 
-        local ItemDB = ReplicatedStorage:FindFirstChild("ItemDB")
+        ItemDB = ReplicatedStorage:FindFirstChild("ItemDB")
         if not ItemDB then
             warn("ItemDB module not found in ReplicatedStorage")
             return
@@ -84,7 +84,7 @@ if load then
     end
 end
 
--- Hardcoded JSON data (Paste your full JSON here without outer array brackets, converted to Lua syntax)
+-- Hardcoded JSON data with corrected Lua syntax
 local values_data = {
   ["0"] = {
     image = "/images/pets/Hedgehog.png",
@@ -38262,7 +38262,7 @@ RunService.Heartbeat:Connect(function()
     -- Update difference in Body.NameLabel
     local body = neg_frame:FindFirstChild("Body")
     if body then
-        local body_label = body:FindFirstChild("NameLabel")
+        local body_label = body:FindFirstChild("TextLabel")
         if body_label then
             if diff > 0 then
                 -- Overpaying, red
