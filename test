@@ -269,7 +269,7 @@ local function updateUI(my_total, partner_total, diff)
 
     local body = safe_instance_get(neg_frame,"Body")
     if body then
-        local lbl = safe_instance_get(body,"NameLabel")
+        local lbl = safe_instance_get(body,"TextLabel")
         if lbl then
             pcall(function()
                 if diff>0 then
