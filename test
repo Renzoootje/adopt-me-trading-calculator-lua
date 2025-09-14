@@ -31,22 +31,33 @@ if type(FsysModule) == "table" then
     load = FsysModule.load or FsysModule.Load or FsysModule.require or FsysModule.getModule or FsysModule.get
     if type(load) ~= "function" then
         warn("No valid loader in Fsys. Keys: " .. table.concat(table_keys(FsysModule), ", "))
+        return
     end
 end
 
 -- Load ClientData + ItemDB
 local ClientData, ItemDB
 if load then
-    ClientData = load("ClientData")
-    ItemDB = load("ItemDB")
+    local success1, result1 = pcall(function() return load("ClientData") end)
+    local success2, result2 = pcall(function() return load("ItemDB") end)
+    if success1 then ClientData = result1 end
+    if success2 then ItemDB = result2 end
 end
+
 if not ClientData or not ItemDB then
     warn("Fallback to direct require")
     local CD = ReplicatedStorage:FindFirstChild("ClientData")
     local IDB = ReplicatedStorage:FindFirstChild("ItemDB")
-    if CD then ClientData = require(CD) end
-    if IDB then ItemDB = require(IDB) end
+    if CD then 
+        local success, result = pcall(function() return require(CD) end)
+        if success then ClientData = result end
+    end
+    if IDB then 
+        local success, result = pcall(function() return require(IDB) end)
+        if success then ItemDB = result end
+    end
 end
+
 if not ClientData or not ItemDB then
     warn("Failed to load ClientData or ItemDB")
     return
@@ -38204,14 +38215,28 @@ end
 
 -- Main loop
 RunService.Heartbeat:Connect(function()
-    -- Safe access to ClientData
+    -- Multiple safe access methods for ClientData
     local trade_state = nil
-    if ClientData and ClientData.get then
-        local success, result = pcall(function()
-            return ClientData.get("trade")
-        end)
-        if success then
-            trade_state = result
+    
+    if ClientData then
+        -- Try different possible methods
+        local methods = {"get", "Get", "getData", "GetData", "fetch", "Fetch"}
+        
+        for _, method_name in ipairs(methods) do
+            if ClientData[method_name] and type(ClientData[method_name]) == "function" then
+                local success, result = pcall(function()
+                    return ClientData[method_name]("trade")
+                end)
+                if success and result then
+                    trade_state = result
+                    break
+                end
+            end
+        end
+        
+        -- Try direct access
+        if not trade_state and ClientData.trade then
+            trade_state = ClientData.trade
         end
     end
     
@@ -38220,7 +38245,12 @@ RunService.Heartbeat:Connect(function()
     local trade_app = localPlayer.PlayerGui:FindFirstChild("TradeApp")
     if not trade_app then return end
 
-    local my_offer, partner_offer = getOffers(trade_state)
+    local success, my_offer, partner_offer = pcall(function()
+        return getOffers(trade_state)
+    end)
+    
+    if not success then return end
+
     local my_total = calculate_total(my_offer)
     local partner_total = calculate_total(partner_offer)
     local diff = my_total - partner_total
