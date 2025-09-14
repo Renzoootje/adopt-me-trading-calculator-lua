@@ -12,12 +12,13 @@ if not Fsys then
     return
 end
 
--- Fix: The Fsys module itself is a table. We get the 'load' function from it.
-local load = Fsys.load
-if not load then
-    warn("Failed to get load function from Fsys module")
+-- Fix: Get the Fsys module's returned table and then the 'load' function from it.
+local FsysModule = require(Fsys)
+if not FsysModule or not FsysModule.load then
+    warn("Failed to get 'load' function from Fsys module")
     return
 end
+local load = FsysModule.load
 
 -- Load ClientData and ItemDB with error handling
 local ClientData = load("ClientData")
