@@ -38417,7 +38417,7 @@ local function updateUI(my_total, partner_total, diff)
     -- Update player labels
     local you_frame = safe_get(neg_frame, "Header", "YouFrame")
     if you_frame then
-        local name_label = you_frame:FindFirstChildOfClass("TextLabel")
+        local name_label = you_frame:FindFirstChildOfClass("NameLabel")
         if name_label then
             pcall(function()
                 name_label.Text = "You (" .. string.format("%.2f", my_total) .. ")"
@@ -38432,7 +38432,7 @@ local function updateUI(my_total, partner_total, diff)
     
     local partner_frame = safe_get(neg_frame, "Header", "PartnerFrame")
     if partner_frame then
-        local name_label = partner_frame:FindFirstChildOfClass("TextLabel")
+        local name_label = partner_frame:FindFirstChildOfClass("NameLabel")
         if name_label then
             pcall(function()
                 name_label.Text = "Partner (" .. string.format("%.2f", partner_total) .. ")"
