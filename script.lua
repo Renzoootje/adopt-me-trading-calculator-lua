@@ -1,3 +1,5 @@
+-- This script calculates the value of items in a Roblox trade.
+
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -10,10 +12,10 @@ if not Fsys then
     return
 end
 
--- Get the load function
-local load = require(Fsys)
+-- Fix: The Fsys module itself is a table. We get the 'load' function from it.
+local load = Fsys.load
 if not load then
-    warn("Failed to get load function from Fsys")
+    warn("Failed to get load function from Fsys module")
     return
 end
 
@@ -30,7 +32,9 @@ if not ItemDB then
     return
 end
 
--- Hardcoded JSON data (Paste your full JSON here without outer array brackets)
+-- Hardcoded JSON data
+-- PASTE YOUR FULL JSON DATA HERE BETWEEN THE BRACES
+-- Make sure it is a valid Lua table.
 local values_data = {
   ["0"] = {
     image = "/images/pets/Hedgehog.png",
@@ -38112,6 +38116,7 @@ local values_data = {
   }
 }
 
+
 -- Create a map from name to data
 local name_to_data = {}
 for _, data in pairs(values_data) do
@@ -38167,7 +38172,7 @@ RunService.Heartbeat:Connect(function()
     repeat
         trade_app = localPlayer.PlayerGui:FindFirstChild("TradeApp")
         if not trade_app then
-            wait(1)
+            task.wait(1)
         end
     until trade_app
 
@@ -38212,14 +38217,14 @@ RunService.Heartbeat:Connect(function()
         if body_label then
             if diff > 0 then
                 -- Overpaying, red
-                body_label.Text = string.format("%.2f", diff)
+                body_label.Text = "Overpaying by " .. string.format("%.2f", diff)
                 body_label.TextColor3 = Color3.new(1, 0, 0)  -- Red
             elseif diff < 0 then
                 -- Underpaying, green
-                body_label.Text = string.format("%.2f", math.abs(diff))
+                body_label.Text = "Underpaying by " .. string.format("%.2f", math.abs(diff))
                 body_label.TextColor3 = Color3.new(0, 1, 0)  -- Green
             else
-                body_label.Text = "0"
+                body_label.Text = "Equal"
                 body_label.TextColor3 = Color3.new(1, 1, 1)  -- White
             end
         end
