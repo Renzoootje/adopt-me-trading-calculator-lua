@@ -13,7 +13,6 @@ local ItemDB = load("ItemDB")
 -- Hardcoded value database
 local value_db = {
     ["0"] = {
-        image = "/images/pets/Hedgehog.png",
         rvalue = 42.5,
         nvalue = 176.0,
         mvalue = 725.0,
@@ -41,7 +40,6 @@ local value_db = {
         id = "0"
     },
     ["1"] = {
-        image = "/images/pets/African Wild Dog.png",
         rvalue = 44.5,
         nvalue = 180.0,
         mvalue = 732.0,
@@ -69,7 +67,6 @@ local value_db = {
         id = "1"
     },
     ["2"] = {
-        image = "/images/pets/Dalmatian.png",
         rvalue = 29.0,
         nvalue = 119.0,
         mvalue = 485.0,
@@ -95,61 +92,6 @@ local value_db = {
         name = "Dalmatian",
         score = 3,
         id = "2"
-    },
-    -- Add more pets here following the same format
-    ["Shadow Dragon"] = {
-        rvalue = 100,
-        nvalue = 400,
-        mvalue = 1600,
-        ["rvalue - nopotion"] = 95,
-        ["rvalue - ride"] = 98,
-        ["rvalue - fly"] = 98,
-        ["rvalue - fly&ride"] = 100,
-        ["nvalue - nopotion"] = 380,
-        ["nvalue - ride"] = 390,
-        ["nvalue - fly"] = 390,
-        ["nvalue - fly&ride"] = 400,
-        ["mvalue - nopotion"] = 1500,
-        ["mvalue - ride"] = 1550,
-        ["mvalue - fly"] = 1550,
-        ["mvalue - fly&ride"] = 1600,
-        name = "Shadow Dragon"
-    },
-    ["Bat Dragon"] = {
-        rvalue = 80,
-        nvalue = 320,
-        mvalue = 1280,
-        ["rvalue - nopotion"] = 75,
-        ["rvalue - ride"] = 78,
-        ["rvalue - fly"] = 78,
-        ["rvalue - fly&ride"] = 80,
-        ["nvalue - nopotion"] = 300,
-        ["nvalue - ride"] = 310,
-        ["nvalue - fly"] = 310,
-        ["nvalue - fly&ride"] = 320,
-        ["mvalue - nopotion"] = 1200,
-        ["mvalue - ride"] = 1240,
-        ["mvalue - fly"] = 1240,
-        ["mvalue - fly&ride"] = 1280,
-        name = "Bat Dragon"
-    },
-    ["Frost Dragon"] = {
-        rvalue = 60,
-        nvalue = 240,
-        mvalue = 960,
-        ["rvalue - nopotion"] = 55,
-        ["rvalue - ride"] = 58,
-        ["rvalue - fly"] = 58,
-        ["rvalue - fly&ride"] = 60,
-        ["nvalue - nopotion"] = 220,
-        ["nvalue - ride"] = 230,
-        ["nvalue - fly"] = 230,
-        ["nvalue - fly&ride"] = 240,
-        ["mvalue - nopotion"] = 900,
-        ["mvalue - ride"] = 930,
-        ["mvalue - fly"] = 930,
-        ["mvalue - fly&ride"] = 960,
-        name = "Frost Dragon"
     }
 }
 
