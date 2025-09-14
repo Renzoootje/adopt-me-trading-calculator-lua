@@ -32,34 +32,6 @@ end
 
 -- Hardcoded JSON data (Paste your full JSON here without outer array brackets)
 local values_data = {
-    ["0"] = {
-        image = "/images/pets/Hedgehog.png",
-        rvalue = 42.5,
-        nvalue = 176.0,
-        mvalue = 725.0,
-        status = "Ready",
-        ["rvalue - nopotion"] = 42.0,
-        ["rvalue - ride"] = 42.0,
-        ["rvalue - fly"] = 42.0,
-        ["rvalue - fly&ride"] = 42.5,
-        ["nvalue - nopotion"] = 181.0,
-        ["nvalue - ride"] = 177.0,
-        ["nvalue - fly"] = 177.0,
-        ["nvalue - fly&ride"] = 176.0,
-        ["mvalue - nopotion"] = 755.0,
-        ["mvalue - ride"] = 739.0,
-        ["mvalue - fly"] = 739.0,
-        ["mvalue - fly&ride"] = 725.0,
-        ["fly&ride?"] = "\"true\"",
-        rarity = "ultra rare",
-        type = "pets",
-        categoryd = "Classy",
-        categoryn = "Classy",
-        categorym = "Classy",
-        name = "Hedgehog",
-        score = 1,
-        id = "0"
-    },
     ["1"] = {
         image = "/images/pets/African Wild Dog.png",
         rvalue = 44.5,
