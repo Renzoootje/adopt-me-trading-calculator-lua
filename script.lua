@@ -176,5 +176,4 @@ local function logTradeItems()
 end
 
 -- Wait a bit for the game to load, then run the calculator
-wait(5)
 logTradeItems()
