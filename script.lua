@@ -38092,7 +38092,7 @@ local function get_value(item, ItemDB, json)
     
     local entry
     for _, e in pairs(json) do
-        if e.name == name then
+        if e and e.name == name then
             entry = e
             break
         end
@@ -38127,6 +38127,7 @@ end
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
 local localPlayer = Players.LocalPlayer
 local Fsys = require(ReplicatedStorage:WaitForChild("Fsys"))
 local load = Fsys.load
@@ -38156,18 +38157,24 @@ local myValueLabel = Instance.new("TextLabel")
 myValueLabel.Position = UDim2.new(0, 10, 0, 40)
 myValueLabel.Size = UDim2.new(1, -20, 0, 20)
 myValueLabel.Text = "My Offer: 0"
+myValueLabel.TextColor3 = Color3.fromRGB(0, 0, 0)
+myValueLabel.BackgroundTransparency = 1
 myValueLabel.Parent = frame
 
 local partnerValueLabel = Instance.new("TextLabel")
 partnerValueLabel.Position = UDim2.new(0, 10, 0, 70)
 partnerValueLabel.Size = UDim2.new(1, -20, 0, 20)
 partnerValueLabel.Text = "Partner Offer: 0"
+partnerValueLabel.TextColor3 = Color3.fromRGB(0, 0, 0)
+partnerValueLabel.BackgroundTransparency = 1
 partnerValueLabel.Parent = frame
 
 local diffLabel = Instance.new("TextLabel")
 diffLabel.Position = UDim2.new(0, 10, 0, 100)
 diffLabel.Size = UDim2.new(1, -20, 0, 20)
 diffLabel.Text = "Difference: FAIR 0"
+diffLabel.TextColor3 = Color3.fromRGB(0, 0, 0)
+diffLabel.BackgroundTransparency = 1
 diffLabel.Parent = frame
 
 -- Make draggable
@@ -38228,12 +38235,14 @@ spawn(function()
             
             local my_total = 0
             for _, item in ipairs(my_offer.items or {}) do
-                my_total = my_total + get_value(item, ItemDB, json)
+                local value = get_value(item, ItemDB, json)
+                my_total = my_total + (value or 0)
             end
             
             local partner_total = 0
             for _, item in ipairs(partner_offer.items or {}) do
-                partner_total = partner_total + get_value(item, ItemDB, json)
+                local value = get_value(item, ItemDB, json)
+                partner_total = partner_total + (value or 0)
             end
             
             local diff = partner_total - my_total
