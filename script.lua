@@ -10,26 +10,10 @@ if not Fsys then
     return
 end
 
--- Require Fsys and inspect its structure
-local FsysModule = require(Fsys)
-if not FsysModule then
-    warn("Fsys did not return a valid module")
-    return
-end
-
--- Attempt to get the load function
-local load
-if type(FsysModule) == "table" then
-    load = FsysModule.load or FsysModule.Load or FsysModule.require
-    if not load then
-        warn("No load function found in FsysModule. Available keys: " .. table.concat(table.keys(FsysModule), ", "))
-        return
-    elseif type(load) ~= "function" then
-        warn("FsysModule.load is not a function, it is a " .. type(load))
-        return
-    end
-else
-    warn("FsysModule is not a table, it is a " .. type(FsysModule))
+-- Get the load function
+local load = require(Fsys)
+if not load then
+    warn("Failed to get load function from Fsys")
     return
 end
 
@@ -287,7 +271,7 @@ RunService.Heartbeat:Connect(function()
     -- Update difference in Body.NameLabel
     local body = neg_frame:FindFirstChild("Body")
     if body then
-        local body_label = body:FindFirstChild("NameLabel")
+        local body_label = body:FindFirstChild("TextLabel")
         if body_label then
             if diff > 0 then
                 -- Overpaying, red
