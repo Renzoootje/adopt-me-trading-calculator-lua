@@ -4,7 +4,6 @@ local RunService = game:GetService("RunService")
 local localPlayer = Players.LocalPlayer
 
 print("Trade calculator script loaded")
-print("LocalPlayer: " .. localPlayer.Name)
 
 -- Cached references to avoid repeated lookups
 local ClientData, ItemDB
@@ -38400,31 +38399,28 @@ end
 
 -- Update UI safely
 local function updateUI(my_total, partner_total, diff)
-    local trade_app = localPlayer.PlayerGui:FindFirstChild("TradeApp")
+    local trade_app = safe_get(localPlayer, "PlayerGui", "TradeApp")
     if not trade_app then 
         print("TradeApp not found in PlayerGui")
         return false 
     end
-    print("Found TradeApp")
 
     local neg_frame = safe_get(trade_app, "Frame", "NegotiationFrame")
     if not neg_frame then 
         print("NegotiationFrame not found")
         return false 
     end
-    print("Found NegotiationFrame")
 
     -- Update player labels
     local you_frame = safe_get(neg_frame, "Header", "YouFrame")
     if you_frame then
-        local name_label = you_frame:FindFirstChildOfClass("NameLabel")
-        if name_label then
+        local name_label = safe_get(you_frame, "NameLabel")
+        if name_label and name_label.Text then
             pcall(function()
                 name_label.Text = "You (" .. string.format("%.2f", my_total) .. ")"
             end)
-            print("Updated You label")
         else
-            print("No TextLabel found in YouFrame")
+            print("YouFrame NameLabel not found or invalid")
         end
     else
         print("YouFrame not found")
@@ -38432,14 +38428,13 @@ local function updateUI(my_total, partner_total, diff)
     
     local partner_frame = safe_get(neg_frame, "Header", "PartnerFrame")
     if partner_frame then
-        local name_label = partner_frame:FindFirstChildOfClass("NameLabel")
-        if name_label then
+        local name_label = safe_get(partner_frame, "NameLabel")
+        if name_label and name_label.Text then
             pcall(function()
                 name_label.Text = "Partner (" .. string.format("%.2f", partner_total) .. ")"
             end)
-            print("Updated Partner label")
         else
-            print("No TextLabel found in PartnerFrame")
+            print("PartnerFrame NameLabel not found or invalid")
         end
     else
         print("PartnerFrame not found")
@@ -38448,8 +38443,8 @@ local function updateUI(my_total, partner_total, diff)
     -- Update difference label
     local body = safe_get(neg_frame, "Body")
     if body then
-        local name_label = body:FindFirstChildOfClass("TextLabel")
-        if name_label then
+        local name_label = safe_get(body, "TextLabel")
+        if name_label and name_label.Text then
             pcall(function()
                 if diff > 0 then
                     name_label.Text = "+" .. string.format("%.2f", diff) .. " (You lose)"
@@ -38462,9 +38457,8 @@ local function updateUI(my_total, partner_total, diff)
                     name_label.TextColor3 = Color3.new(1, 1, 1)
                 end
             end)
-            print("Updated diff label")
         else
-            print("No TextLabel found in Body")
+            print("Body TextLabel not found or invalid")
         end
     else
         print("Body not found")
@@ -38538,7 +38532,6 @@ connection = RunService.Heartbeat:Connect(function()
         -- Don't disconnect on error, just continue trying
     end
 end)
-print("Heartbeat connection established")
 
 -- Initialize immediately
 spawn(function()
