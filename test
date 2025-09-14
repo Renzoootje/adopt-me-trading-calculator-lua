@@ -1,16 +1,15 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local HttpService = game:GetService("HttpService")
 local localPlayer = Players.LocalPlayer
 
--- Helper: copy a table so we never touch Roblox's readonly trade data
-local function safeCopy(item)
-    local copy = {}
-    for k, v in pairs(item) do
-        copy[k] = v
+-- Helper: get keys of a table (for debugging)
+local function table_keys(tbl)
+    local keys = {}
+    for k, _ in pairs(tbl) do
+        table.insert(keys, tostring(k))
     end
-    return copy
+    return keys
 end
 
 -- Wait for Fsys
@@ -21,24 +20,42 @@ if not Fsys then
 end
 
 local FsysModule = require(Fsys)
-local load = FsysModule.load or FsysModule.require or FsysModule.getModule
-if load and type(load) ~= "function" then
-    load = nil
-end
-
--- Load ClientData + ItemDB
-local ClientData = load and load("ClientData") or nil
-local ItemDB = load and load("ItemDB") or nil
-
-if not ClientData or not ItemDB then
-    warn("Could not load ClientData or ItemDB")
+if not FsysModule then
+    warn("Fsys invalid")
     return
 end
 
--- Example values JSON (only one pet for now)
+-- Find load function
+local load
+if type(FsysModule) == "table" then
+    load = FsysModule.load or FsysModule.Load or FsysModule.require or FsysModule.getModule or FsysModule.get
+    if type(load) ~= "function" then
+        warn("No valid loader in Fsys. Keys: " .. table.concat(table_keys(FsysModule), ", "))
+    end
+end
+
+-- Load ClientData + ItemDB
+local ClientData, ItemDB
+if load then
+    ClientData = load("ClientData")
+    ItemDB = load("ItemDB")
+end
+if not ClientData or not ItemDB then
+    warn("Fallback to direct require")
+    local CD = ReplicatedStorage:FindFirstChild("ClientData")
+    local IDB = ReplicatedStorage:FindFirstChild("ItemDB")
+    if CD then ClientData = require(CD) end
+    if IDB then ItemDB = require(IDB) end
+end
+if not ClientData or not ItemDB then
+    warn("Failed to load ClientData or ItemDB")
+    return
+end
+
+-- Value list (1 sample pet)
 local values_data = {
     ["0"] = {
-        name = "Hedgehog",
+        image = "/images/pets/Hedgehog.png",
         rvalue = 42.5,
         nvalue = 176.0,
         mvalue = 725.0,
@@ -56,56 +73,63 @@ local values_data = {
         ["mvalue - fly&ride"] = 725.0,
         rarity = "ultra rare",
         type = "pets",
+        name = "Hedgehog",
         id = "0"
     }
 }
 
--- Build quick lookup
+-- Map by name
 local name_to_data = {}
-for _, data in pairs(values_data) do
-    if data.name then
-        name_to_data[data.name] = data
-    end
+for _, d in pairs(values_data) do
+    if d.name then name_to_data[d.name] = d end
 end
 
--- Get trade state safely
-local function get_trade_state()
-    if ClientData.get and type(ClientData.get) == "function" then
-        return ClientData.get("trade")
-    elseif type(ClientData) == "function" then
-        return ClientData("trade")
-    elseif ClientData.trade then
-        return ClientData.trade
+-- Deep copy (fix readonly issue)
+local function deepCopy(orig)
+    if type(orig) ~= "table" then return orig end
+    local copy = {}
+    for k, v in pairs(orig) do
+        copy[k] = deepCopy(v)
     end
-    return nil
+    return copy
 end
 
--- Calculate total value of an offer
+-- Safe get offers
+local function getOffers(trade_state)
+    local my_offer, partner_offer
+    if localPlayer == trade_state.sender then
+        my_offer = deepCopy(trade_state.sender_offer or {})
+        partner_offer = deepCopy(trade_state.recipient_offer or {})
+    else
+        my_offer = deepCopy(trade_state.recipient_offer or {})
+        partner_offer = deepCopy(trade_state.sender_offer or {})
+    end
+    return my_offer, partner_offer
+end
+
+-- Calculate total
 local function calculate_total(offer)
     if not offer or not offer.items then return 0 end
     local total = 0
-
     for _, item in ipairs(offer.items) do
-        local safeItem = safeCopy(item) -- 👈 never touch readonly tables
-        local itemData = ItemDB[safeItem.category] and ItemDB[safeItem.category][safeItem.kind]
-        local itemName = itemData and (itemData.name or safeItem.kind) or "Unknown"
-        local data = name_to_data[itemName]
-
+        local item_data = ItemDB[item.category] and ItemDB[item.category][item.kind]
+        local item_name = item_data and (item_data.name or item.kind) or "Unknown"
+        local data = name_to_data[item_name]
         if data then
             local value = 0
-            if safeItem.category == "pets" then
+            if item.category == "pets" then
                 local base = "rvalue"
-                if safeItem.properties and safeItem.properties.mega_neon then
+                if item.properties and item.properties.mega_neon then
                     base = "mvalue"
-                elseif safeItem.properties and safeItem.properties.neon then
+                elseif item.properties and item.properties.neon then
                     base = "nvalue"
                 end
                 local suffix = " - nopotion"
-                if safeItem.properties and safeItem.properties.flyable and safeItem.properties.rideable then
+                if item.properties and item.properties.flyable and item.properties.rideable then
                     suffix = " - fly&ride"
-                elseif safeItem.properties and safeItem.properties.flyable then
+                elseif item.properties and item.properties.flyable then
                     suffix = " - fly"
-                elseif safeItem.properties and safeItem.properties.rideable then
+                elseif item.properties and item.properties.rideable then
                     suffix = " - ride"
                 end
                 value = data[base .. suffix] or 0
@@ -115,81 +139,46 @@ local function calculate_total(offer)
             total = total + value
         end
     end
-
     return total
-end
-
--- Debug: convert offers to JSON (safe copy version)
-local function offer_to_json(offer)
-    local result = {}
-    if not offer or not offer.items then return result end
-    for _, item in ipairs(offer.items) do
-        local safeItem = safeCopy(item)
-        local itemData = ItemDB[safeItem.category] and ItemDB[safeItem.category][safeItem.kind]
-        local itemName = itemData and (itemData.name or safeItem.kind) or "Unknown"
-
-        table.insert(result, {
-            id = safeItem.kind,
-            name = itemName,
-            amount = safeItem.amount or 1,
-            rarity = itemData and itemData.rarity or "???"
-        })
-    end
-    return result
 end
 
 -- Main loop
 RunService.Heartbeat:Connect(function()
-    local trade_state = get_trade_state()
+    local trade_state = ClientData.get and ClientData.get("trade")
     if not trade_state then return end
 
     local trade_app = localPlayer.PlayerGui:FindFirstChild("TradeApp")
     if not trade_app then return end
 
-    local my_offer, partner_offer
-    if localPlayer == trade_state.sender then
-        my_offer = trade_state.sender_offer
-        partner_offer = trade_state.recipient_offer
-    else
-        my_offer = trade_state.recipient_offer
-        partner_offer = trade_state.sender_offer
-    end
-
+    local my_offer, partner_offer = getOffers(trade_state)
     local my_total = calculate_total(my_offer)
     local partner_total = calculate_total(partner_offer)
     local diff = my_total - partner_total
 
-    -- Debug print: JSON of both offers
-    local tradeJSON = HttpService:JSONEncode({
-        me = offer_to_json(my_offer),
-        partner = offer_to_json(partner_offer)
-    })
-    print("Trade JSON:\n", tradeJSON)
-
-    local neg_frame = trade_app:FindFirstChild("Frame") and trade_app.Frame:FindFirstChild("NegotiationFrame")
+    local neg_frame = trade_app.Frame:FindFirstChild("NegotiationFrame")
     if not neg_frame then return end
 
-    local you_label = neg_frame:FindFirstChild("Header") and neg_frame.Header:FindFirstChild("YouFrame") and neg_frame.Header.YouFrame:FindFirstChild("NameLabel")
-    if you_label then
-        you_label.Text = "You (" .. string.format("%.2f", my_total) .. ")"
+    -- Update labels
+    local you_frame = neg_frame.Header:FindFirstChild("YouFrame")
+    if you_frame and you_frame:FindFirstChild("NameLabel") then
+        you_frame.NameLabel.Text = "You (" .. string.format("%.2f", my_total) .. ")"
+    end
+    local partner_frame = neg_frame.Header:FindFirstChild("PartnerFrame")
+    if partner_frame and partner_frame:FindFirstChild("TextLabel") then
+        partner_frame.NameLabel.Text = "Partner (" .. string.format("%.2f", partner_total) .. ")"
     end
 
-    local partner_label = neg_frame:FindFirstChild("Header") and neg_frame.Header:FindFirstChild("PartnerFrame") and neg_frame.Header.PartnerFrame:FindFirstChild("NameLabel")
-    if partner_label then
-        partner_label.Text = "Partner (" .. string.format("%.2f", partner_total) .. ")"
-    end
-
-    local body_label = neg_frame:FindFirstChild("Body") and neg_frame.Body:FindFirstChild("TextLabel")
-    if body_label then
+    local body = neg_frame:FindFirstChild("Body")
+    if body and body:FindFirstChild("NameLabel") then
         if diff > 0 then
-            body_label.Text = string.format("%.2f", diff)
-            body_label.TextColor3 = Color3.new(1, 0, 0)
+            body.NameLabel.Text = string.format("%.2f", diff)
+            body.NameLabel.TextColor3 = Color3.new(1, 0, 0)
         elseif diff < 0 then
-            body_label.Text = string.format("%.2f", math.abs(diff))
-            body_label.TextColor3 = Color3.new(0, 1, 0)
+            body.NameLabel.Text = string.format("%.2f", math.abs(diff))
+            body.NameLabel.TextColor3 = Color3.new(0, 1, 0)
         else
-            body_label.Text = "0"
-            body_label.TextColor3 = Color3.new(1, 1, 1)
+            body.NameLabel.Text = "0"
+            body.NameLabel.TextColor3 = Color3.new(1, 1, 1)
         end
     end
 end)
