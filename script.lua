@@ -33,6 +33,28 @@ if not ItemDB then
     return
 end
 
+-- Load additional modules for tooltip modification
+local TooltipHelper = load("TooltipHelper")
+if not TooltipHelper then
+    warn("Failed to load TooltipHelper module")
+    return
+end
+
+local RarityDB = load("RarityDB")
+if not RarityDB then
+    warn("Failed to load RarityDB module")
+    return
+end
+
+local Sift = load("package:Sift")
+if not Sift then
+    warn("Failed to load Sift package")
+    return
+end
+
+local LocalizationService = game:GetService("LocalizationService")
+local translator = LocalizationService:GetTranslatorForPlayer(localPlayer)
+
 -- Hardcoded JSON data
 -- PASTE YOUR FULL JSON DATA HERE BETWEEN THE BRACES
 -- Make sure it is a valid Lua table.
@@ -17084,7 +17106,7 @@ local values_data = {
   ["634"] = {
     egg = "Safari Egg",
     image = "/images/pets/Safari Egg.png",
-    value = 181.0,
+    rvalue = 181.0,
     status = "Ready",
     rarity = "legendary",
     type = "eggs",
@@ -17095,7 +17117,7 @@ local values_data = {
   ["635"] = {
     egg = "Jungle Egg",
     image = "/images/pets/Jungle Egg.png",
-    value = 48.0,
+    rvalue = 48.0,
     rarity = "legendary",
     type = "eggs",
     name = "Jungle Egg",
@@ -17105,7 +17127,7 @@ local values_data = {
   ["636"] = {
     egg = "Blue Egg",
     image = "/images/pets/Blue Egg.png",
-    value = 44.0,
+    rvalue = 44.0,
     rarity = "rare",
     type = "eggs",
     name = "Blue Egg",
@@ -17115,7 +17137,7 @@ local values_data = {
   ["637"] = {
     egg = "Farm Egg",
     image = "/images/pets/Farm Egg.png",
-    value = 64.0,
+    rvalue = 64.0,
     status = "Ready",
     rarity = "legendary",
     type = "eggs",
@@ -17126,7 +17148,7 @@ local values_data = {
   ["638"] = {
     egg = "Pink Egg",
     image = "/images/pets/Pink Egg.png",
-    value = 32.0,
+    rvalue = 32.0,
     rarity = "rare",
     type = "eggs",
     name = "Pink Egg",
@@ -17136,7 +17158,7 @@ local values_data = {
   ["639"] = {
     egg = "Christmas Egg",
     image = "/images/pets/Christmas Egg.png",
-    value = 11.0,
+    rvalue = 11.0,
     rarity = "legendary",
     type = "eggs",
     name = "Christmas Egg",
@@ -17146,7 +17168,7 @@ local values_data = {
   ["640"] = {
     egg = "Aussie Egg",
     image = "/images/pets/Aussie Egg.png",
-    value = 3.5,
+    rvalue = 3.5,
     rarity = "legendary",
     type = "eggs",
     name = "Aussie Egg",
@@ -17156,7 +17178,7 @@ local values_data = {
   ["641"] = {
     egg = "Easter 2020 Egg",
     image = "/images/pets/Easter 2020 Egg.png",
-    value = 1.75,
+    rvalue = 1.75,
     rarity = "common",
     type = "eggs",
     name = "Easter 2020 Egg",
@@ -17166,7 +17188,7 @@ local values_data = {
   ["642"] = {
     egg = "Diamond Egg",
     image = "/images/pets/Diamond Egg.png",
-    value = 1.25,
+    rvalue = 1.25,
     status = "Ready",
     rarity = "legendary",
     type = "eggs",
@@ -17177,7 +17199,7 @@ local values_data = {
   ["643"] = {
     egg = "Royal Desert Egg",
     image = "/images/pets/Royal Desert Egg.png",
-    value = 1.5,
+    rvalue = 1.5,
     rarity = "legendary",
     type = "eggs",
     name = "Royal Desert Egg",
@@ -17187,7 +17209,7 @@ local values_data = {
   ["644"] = {
     egg = "Royal Moon Egg",
     image = "/images/pets/Royal Moon Egg.png",
-    value = 0.4,
+    rvalue = 0.4,
     rarity = "legendary",
     type = "eggs",
     name = "Royal Moon Egg",
@@ -17197,7 +17219,7 @@ local values_data = {
   ["645"] = {
     egg = "Golden Egg",
     image = "/images/pets/Golden Egg.png",
-    value = 0.7,
+    rvalue = 0.7,
     rarity = "legendary",
     type = "eggs",
     name = "Golden Egg",
@@ -17207,7 +17229,7 @@ local values_data = {
   ["646"] = {
     egg = "Fossil Egg",
     image = "/images/pets/Fossil Egg.png",
-    value = 0.7,
+    rvalue = 0.7,
     rarity = "legendary",
     type = "eggs",
     name = "Fossil Egg",
@@ -17217,7 +17239,7 @@ local values_data = {
   ["647"] = {
     egg = "Ocean Egg",
     image = "/images/pets/Ocean Egg.png",
-    value = 0.5,
+    rvalue = 0.5,
     rarity = "legendary",
     type = "eggs",
     name = "Ocean Egg",
@@ -17227,7 +17249,7 @@ local values_data = {
   ["648"] = {
     egg = "Mythic Egg",
     image = "/images/pets/Mythic Egg.png",
-    value = 0.3,
+    rvalue = 0.3,
     rarity = "legendary",
     type = "eggs",
     name = "Mythic Egg",
@@ -17237,7 +17259,7 @@ local values_data = {
   ["649"] = {
     egg = "Fool Egg",
     image = "/images/pets/Fool Egg.png",
-    value = 0.2,
+    rvalue = 0.2,
     rarity = "legendary",
     type = "eggs",
     name = "Fool Egg",
@@ -17247,7 +17269,7 @@ local values_data = {
   ["650"] = {
     egg = "Royal Egg",
     image = "/images/pets/Royal Egg.png",
-    value = 0.15,
+    rvalue = 0.15,
     rarity = "legendary",
     type = "eggs",
     name = "Royal Egg",
@@ -17257,7 +17279,7 @@ local values_data = {
   ["651"] = {
     egg = "Woodland Egg",
     image = "/images/pets/Woodland Egg.png",
-    value = 0.15,
+    rvalue = 0.15,
     rarity = "legendary",
     type = "eggs",
     name = "Woodland Egg",
@@ -17267,7 +17289,7 @@ local values_data = {
   ["652"] = {
     egg = "Japan Egg",
     image = "/images/pets/Japan Egg.png",
-    value = 0.15,
+    rvalue = 0.15,
     rarity = "legendary",
     type = "eggs",
     name = "Japan Egg",
@@ -17277,7 +17299,7 @@ local values_data = {
   ["653"] = {
     egg = "Southeast Asia Egg",
     image = "/images/pets/Southeast Asia Egg.png",
-    value = 0.15,
+    rvalue = 0.15,
     rarity = "legendary",
     type = "eggs",
     name = "Southeast Asia Egg",
@@ -17287,7 +17309,7 @@ local values_data = {
   ["654"] = {
     egg = "Moon Egg",
     image = "/images/pets/Moon Egg.png",
-    value = 0.1,
+    rvalue = 0.1,
     rarity = "legendary",
     type = "eggs",
     name = "Moon Egg",
@@ -17297,7 +17319,7 @@ local values_data = {
   ["655"] = {
     egg = "Danger Egg",
     image = "/images/pets/Danger Egg.png",
-    value = 0.1,
+    rvalue = 0.1,
     rarity = "legendary",
     type = "eggs",
     name = "Danger Egg",
@@ -17307,7 +17329,7 @@ local values_data = {
   ["656"] = {
     egg = "Urban Egg",
     image = "/images/pets/Urban Egg.png",
-    value = 0.1,
+    rvalue = 0.1,
     rarity = "legendary",
     type = "eggs",
     name = "Urban Egg",
@@ -17317,7 +17339,7 @@ local values_data = {
   ["657"] = {
     egg = "Desert Egg",
     image = "/images/pets/Desert Egg.png",
-    value = 0.1,
+    rvalue = 0.1,
     rarity = "legendary",
     type = "eggs",
     name = "Desert Egg",
@@ -17327,7 +17349,7 @@ local values_data = {
   ["658"] = {
     egg = "Garden Egg",
     image = "/images/pets/Garden Egg.png",
-    value = 0.1,
+    rvalue = 0.1,
     rarity = "legendary",
     type = "eggs",
     name = "Garden Egg",
@@ -17337,7 +17359,7 @@ local values_data = {
   ["659"] = {
     egg = "Christmas Future Egg",
     image = "/images/pets/Christmas Future Egg.png",
-    value = 0.1,
+    rvalue = 0.1,
     rarity = "uncommon",
     type = "eggs",
     name = "Christmas Future Egg",
@@ -17347,7 +17369,7 @@ local values_data = {
   ["660"] = {
     egg = "Retired Egg",
     image = "/images/pets/Retired Egg.png",
-    value = 0.1,
+    rvalue = 0.1,
     rarity = "rare",
     type = "eggs",
     name = "Retired Egg",
@@ -17357,7 +17379,7 @@ local values_data = {
   ["661"] = {
     egg = "Zodiac Minion Egg",
     image = "/images/pets/Zodiac Minion Egg.png",
-    value = 0.1,
+    rvalue = 0.1,
     rarity = "legendary",
     type = "eggs",
     name = "Zodiac Minion Egg",
@@ -17367,7 +17389,7 @@ local values_data = {
   ["662"] = {
     egg = "Pet Egg",
     image = "/images/pets/Pet Egg.png",
-    value = 0.1,
+    rvalue = 0.1,
     rarity = "rare",
     type = "eggs",
     name = "Pet Egg",
@@ -17377,7 +17399,7 @@ local values_data = {
   ["663"] = {
     egg = "Cracked Egg",
     image = "/images/pets/Cracked Egg.png",
-    value = 0.05,
+    rvalue = 0.05,
     rarity = "common",
     type = "eggs",
     name = "Cracked Egg",
@@ -37077,7 +37099,7 @@ local values_data = {
   ["2461"] = {
     egg = "Royal Aztec Egg",
     image = "/images/pets/Royal Aztec Egg.png",
-    value = 0.5,
+    rvalue = 0.5,
     status = "Ready",
     rarity = "legendary",
     type = "eggs",
@@ -37354,7 +37376,7 @@ local values_data = {
   ["2476"] = {
     egg = "Aztec Egg",
     image = "/images/pets/Aztec Egg.png",
-    value = 0.1,
+    rvalue = 0.1,
     status = "Ready",
     rarity = "legendary",
     type = "eggs",
@@ -38123,6 +38145,89 @@ local name_to_data = {}
 for _, data in pairs(values_data) do
     if data.name then
         name_to_data[data.name] = data
+    end
+end
+
+-- Load and override ItemTooltip to include value in title
+local ItemTooltip = load("ItemTooltip")
+if ItemTooltip then
+    local tbl_upvr = { NONE = {}; HOVER = { title = true; description = true; }; }
+    ItemTooltip._update_watched = function(arg1, arg2)
+        local watched_item_entry = arg1.watched_item_entry
+        if not watched_item_entry then
+            watched_item_entry = arg1.watched_item_data
+        end
+        local var33 = assert(watched_item_entry, "Tooltip is not watching anything.")
+        local var35 = {}
+        local var36 = true
+        local watched_item_data_2
+        if arg1.watched_item_data then
+            watched_item_data_2 = arg1.watched_item_data
+            var33 = ItemDB[watched_item_data_2.category][watched_item_data_2.kind]
+            local any_get_item_data_description_result1 = TooltipHelper.get_item_data_description(watched_item_data_2, var33, nil, arg1.options)
+            var35 = any_get_item_data_description_result1.paragraphs
+            var36 = any_get_item_data_description_result1.empty
+        end
+        local displayed_rarity = var33.displayed_rarity
+        if not displayed_rarity then
+            displayed_rarity = var33.rarity
+            if not displayed_rarity then
+                displayed_rarity = "common"
+            end
+        end
+        local var40 = RarityDB[displayed_rarity]
+        displayed_rarity = var33.name
+        local var41 = displayed_rarity
+        if arg2.name_strikethrough then
+            var41 = "<s> "..var41.." </s>"
+        end
+
+        -- Add value to title if applicable
+        if arg1.watched_item_data then
+            local category = watched_item_data_2.category
+            local kind = watched_item_data_2.kind
+            local item_name = var33.name or kind
+            local data = name_to_data[item_name]
+            if data then
+                local value = 0
+                local properties = watched_item_data_2.properties or {}
+                if category == "pets" then
+                    local base = "rvalue"
+                    if properties.mega_neon then
+                        base = "mvalue"
+                    elseif properties.neon then
+                        base = "nvalue"
+                    end
+                    local suffix = " - nopotion"
+                    if properties.flyable and properties.rideable then
+                        suffix = " - fly&ride"
+                    elseif properties.flyable then
+                        suffix = " - fly"
+                    elseif properties.rideable then
+                        suffix = " - ride"
+                    end
+                    local key = base .. suffix
+                    value = data[key] or 0
+                else
+                    value = data.value or 0
+                end
+                var41 = var41 .. " (" .. string.format("%.2f", value) .. ")"
+            end
+        end
+
+        local tbl_3 = { image = var33.image; flipbook_properties = var33.flipbook_properties; header_text = var41; }
+        local color = var40.color
+        tbl_3.sub_header_text = "<font color= \"rgb(%s, %s, %s)\">%s</font>":format(math.round(color.r * 255), math.round(color.g * 255), math.round(color.b * 255), "◆ ")..translator:Translate(workspace, var40.name)
+        tbl_3.exit_button_space = false
+        tbl_3.favorite_background = false
+        arg1.components.title:set_options(tbl_3)
+        arg1.components.description:set_options({ min_height = 0; max_height = 116; auto_localize = false; paragraphs = var35; })
+        local any_merge_result1 = Sift.Dictionary.merge(tbl_upvr.HOVER, arg1:_get_divider_visibility(var36))
+        if var36 then
+            any_merge_result1.description = false
+        end
+        arg1:_set_components_visible(any_merge_result1)
+        arg1.tooltip:refresh()
     end
 end
 
